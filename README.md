@@ -1,6 +1,6 @@
 # SciGuides Robot Base
 
-[![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://github.com/codespaces/new?template_repository=SciBorgs/Sci)
+[![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://github.com/codespaces/new?template_repository=SciBorgs/SciGuidesRobotBase)
 
 This is the base repository used for projects in [SciGuides](https://github.com/SciBorgs/SciGuides). It is based on [Hydrogen](https://github.com/SciBorgs/Hydrogen), the base repository for the SciBorgs.
 
