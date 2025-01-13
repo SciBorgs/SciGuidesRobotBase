@@ -5,10 +5,9 @@
       "version": "17",
       "installMaven": false,
       "installGradle": true
-    },
-    "ghcr.io/devcontainers/features/cpp:1": {}
+    }
   },
-  "postCreateCommand": "cd /opt && wget 'https://github.com/wpilibsuite/vscode-wpilib/releases/download/v2024.3.2/vscode-wpilib-2024.3.2.vsix'",
+  "postCreateCommand": "sudo apt-get update && sudo apt-get install -y build-essential libstdc++6 && cd /opt && wget 'https://github.com/wpilibsuite/vscode-wpilib/releases/download/v2024.3.2/vscode-wpilib-2024.3.2.vsix'",
   "customizations": {
     "vscode": {
       "extensions": [
