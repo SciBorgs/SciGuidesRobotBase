@@ -1,34 +1,19 @@
 {
-  "image": "mcr.microsoft.com/devcontainers/universal:2",
-  "features": {
-    "ghcr.io/devcontainers/features/java:1": {
-      "version": "17",
-      "installMaven": false,
-      "installGradle": true
-    }
-  },
-  "postCreateCommand": "sudo apt-get update && sudo apt-get install -y build-essential libstdc++6 && cd /opt && wget 'https://github.com/wpilibsuite/vscode-wpilib/releases/download/v2024.3.2/vscode-wpilib-2024.3.2.vsix'",
+  "name": "FRC Development",
+  "image": "mcr.microsoft.com/devcontainers/java:17",
   "customizations": {
-    "vscode": {
-      "extensions": [
-        "/opt/vscode-wpilib-2024.3.2.vsix",
-        "vscjava.vscode-java-pack",
-        "vscjava.vscode-gradle",
-        "redhat.java",
-        "vscjava.vscode-java-debug",
-        "vscjava.vscode-java-dependency",
-        "ms-vscode.cpptools"
-      ],
-      "settings": {
-        "java.configuration.runtimes": [
-          {
-            "name": "JavaSE-17",
-            "path": "/usr/lib/jvm/msopenjdk-17",
-            "default": true
-          }
-        ],
-        "java.jdt.ls.java.home": "/usr/lib/jvm/msopenjdk-17"
+      "vscode": {
+          "extensions": [
+            "/opt/vscode-wpilib-2024.3.2.vsix",
+            "vscjava.vscode-java-pack",
+            "vscjava.vscode-gradle",
+            "redhat.java",
+            "vscjava.vscode-java-debug",
+            "vscjava.vscode-java-dependency",
+            "ms-vscode.cpptools"
+              ]
       }
-    }
-  }
+  },
+  "remoteUser": "codespace",
+  "containerUser": "codespace"
 }
