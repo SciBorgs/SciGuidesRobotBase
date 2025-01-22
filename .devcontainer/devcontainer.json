@@ -14,6 +14,12 @@
               ]
       }
   },
-  "remoteUser": "codespace",
-  "containerUser": "codespace"
+  "remoteUser": "vscode",
+  "containerUser": "vscode",
+  "containerEnv": {
+     "JAVA_HOME": "/usr/lib/jvm/java-17-openjdk-amd64"
+  },
+  "features": {
+      "java": "17"
+  }
 }
