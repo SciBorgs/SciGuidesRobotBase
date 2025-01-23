@@ -4,7 +4,6 @@
   "customizations": {
       "vscode": {
           "extensions": [
-            "/opt/vscode-wpilib-2024.3.2.vsix",
             "vscjava.vscode-java-pack",
             "vscjava.vscode-gradle",
             "redhat.java",
@@ -21,5 +20,7 @@
   },
   "features": {
       "java": "17"
-  }
+  },
+  "postCreateCommand": "mkdir -p /home/vscode/.vscode-remote/extensions && cd /home/vscode && curl -L -o .vscode-remote/extensions/vscode-wpilib-2024.3.2.vsix https://github.com/wpilibsuite/vscode-wpilib/releases/download/v2024.3.2/vscode-wpilib-2024.3.2.vsix",
+  "postAttachCommand": "code --install-extension /home/vscode/.vscode-remote/extensions/vscode-wpilib-2024.3.2.vsix"
 }
