@@ -1,5 +1,5 @@
 {
-  "name": "FRC Development",
+  "name": "SciGuides Base",
   "image": "mcr.microsoft.com/devcontainers/java:17",
   "customizations": {
       "vscode": {
