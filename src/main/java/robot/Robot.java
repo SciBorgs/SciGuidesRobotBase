@@ -15,9 +15,6 @@ import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
 import lib.CommandRobot;
 import lib.FaultLogger;
-import monologue.Logged;
-import monologue.Monologue;
-import org.littletonrobotics.urcl.URCL;
 import robot.Ports.OI;
 
 /**
@@ -26,7 +23,7 @@ import robot.Ports.OI;
  * periodic methods (other than the scheduler calls). Instead, the structure of the robot (including
  * subsystems, commands, and trigger mappings) should be declared here.
  */
-public class Robot extends CommandRobot implements Logged {
+public class Robot extends CommandRobot {
   // INPUT DEVICES
   private final CommandXboxController operator = new CommandXboxController(OI.OPERATOR);
   private final CommandXboxController driver = new CommandXboxController(OI.DRIVER);
@@ -49,8 +46,6 @@ public class Robot extends CommandRobot implements Logged {
     // TODO: Add configs for all additional libraries, components, intersubsystem interaction
     // Configure logging with DataLogManager, Monologue, URCL, and FaultLogger
     DataLogManager.start();
-    Monologue.setupMonologue(this, "/Robot", false, true);
-    addPeriodic(Monologue::updateAll, PERIOD.in(Seconds));
     addPeriodic(FaultLogger::update, 2);
 
     SmartDashboard.putData(CommandScheduler.getInstance());
@@ -61,7 +56,6 @@ public class Robot extends CommandRobot implements Logged {
     RobotController.setBrownoutVoltage(6.0);
 
     if (isReal()) {
-      URCL.start();
       pdh.clearStickyFaults();
       pdh.setSwitchableChannel(true);
     } else {

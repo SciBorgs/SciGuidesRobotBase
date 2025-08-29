@@ -1,11 +1,12 @@
 package lib;
 
 import com.ctre.phoenix6.StatusSignal;
+import com.ctre.phoenix6.hardware.CANcoder;
 import com.ctre.phoenix6.hardware.TalonFX;
-import com.kauailabs.navx.frc.AHRS;
-import com.revrobotics.CANSparkBase;
-import com.revrobotics.CANSparkBase.FaultID;
+import com.reduxrobotics.sensors.canandgyro.Canandgyro;
 import com.revrobotics.REVLibError;
+import com.revrobotics.spark.SparkBase;
+import com.studica.frc.AHRS;
 import edu.wpi.first.hal.PowerDistributionFaults;
 import edu.wpi.first.networktables.NetworkTable;
 import edu.wpi.first.networktables.NetworkTableInstance;
@@ -13,6 +14,8 @@ import edu.wpi.first.networktables.StringArrayPublisher;
 import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.DutyCycleEncoder;
 import edu.wpi.first.wpilibj.PowerDistribution;
+import robot.Ports;
+
 import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -42,11 +45,6 @@ public final class FaultLogger {
     }
   }
 
-  @FunctionalInterface
-  public static interface FaultReporter {
-    void report();
-  }
-
   /**
    * The type of fault, used for detecting whether the fallible is in a failure state and displaying
    * to NetworkTables.
@@ -59,12 +57,13 @@ public final class FaultLogger {
 
   /** A class to represent an alerts widget on NetworkTables */
   public static class Alerts {
-    private final StringArrayPublisher errors;
-    private final StringArrayPublisher warnings;
-    private final StringArrayPublisher infos;
+    private final NetworkTable table;
+    private StringArrayPublisher errors;
+    private StringArrayPublisher warnings;
+    private StringArrayPublisher infos;
 
     public Alerts(NetworkTable base, String name) {
-      NetworkTable table = base.getSubTable(name);
+      table = base.getSubTable(name);
       table.getStringTopic(".type").publish().set("Alerts");
       errors = table.getStringArrayTopic("errors").publish();
       warnings = table.getStringArrayTopic("warnings").publish();
@@ -76,11 +75,20 @@ public final class FaultLogger {
       warnings.set(filteredStrings(faults, FaultType.WARNING));
       infos.set(filteredStrings(faults, FaultType.INFO));
     }
+
+    public void reset() {
+      errors.close();
+      warnings.close();
+      infos.close();
+
+      errors = table.getStringArrayTopic("errors").publish();
+      warnings = table.getStringArrayTopic("warnings").publish();
+      infos = table.getStringArrayTopic("infos").publish();
+    }
   }
 
   // DATA
-  private static final List<FaultReporter> faultReporters = new ArrayList<>();
-  private static final Set<Fault> newFaults = new HashSet<>();
+  private static final List<Supplier<Optional<Fault>>> faultReporters = new ArrayList<>();
   private static final Set<Fault> activeFaults = new HashSet<>();
   private static final Set<Fault> totalFaults = new HashSet<>();
 
@@ -91,23 +99,23 @@ public final class FaultLogger {
 
   /** Polls registered fallibles. This method should be called periodically. */
   public static void update() {
-    activeFaults.clear();
-
-    faultReporters.forEach(FaultReporter::report);
-    activeFaults.addAll(newFaults);
-    newFaults.clear();
+    faultReporters.forEach(r -> r.get().ifPresent(fault -> report(fault)));
 
     totalFaults.addAll(activeFaults);
 
     activeAlerts.set(activeFaults);
     totalAlerts.set(totalFaults);
+
+    activeFaults.clear();
   }
 
   /** Clears total faults. */
   public static void clear() {
     totalFaults.clear();
     activeFaults.clear();
-    newFaults.clear();
+
+    totalAlerts.reset();
+    activeAlerts.reset();
   }
 
   /** Clears fault suppliers. */
@@ -139,7 +147,7 @@ public final class FaultLogger {
    * @param fault The fault to report.
    */
   public static void report(Fault fault) {
-    newFaults.add(fault);
+    activeFaults.add(fault);
     switch (fault.type) {
       case ERROR -> DriverStation.reportError(fault.toString(), false);
       case WARNING -> DriverStation.reportWarning(fault.toString(), false);
@@ -158,13 +166,21 @@ public final class FaultLogger {
     report(new Fault(name, description, type));
   }
 
+  /** Conditionally reports a fault and returns the condition */
+  public static boolean report(boolean condition, Fault fault) {
+    if (condition) {
+      report(fault);
+    }
+    return condition;
+  }
+
   /**
    * Registers a new fault supplier.
    *
    * @param supplier A supplier of an optional fault.
    */
   public static void register(Supplier<Optional<Fault>> supplier) {
-    faultReporters.add(() -> supplier.get().ifPresent(FaultLogger::report));
+    faultReporters.add(supplier);
   }
 
   /**
@@ -176,12 +192,11 @@ public final class FaultLogger {
    */
   public static void register(
       BooleanSupplier condition, String name, String description, FaultType type) {
-    faultReporters.add(
-        () -> {
-          if (condition.getAsBoolean()) {
-            report(name, description, type);
-          }
-        });
+    register(
+        () ->
+            condition.getAsBoolean()
+                ? Optional.of(new Fault(name, description, type))
+                : Optional.empty());
   }
 
   /**
@@ -189,15 +204,40 @@ public final class FaultLogger {
    *
    * @param spark The Spark Max or Spark Flex to manage.
    */
-  public static void register(CANSparkBase spark) {
-    faultReporters.add(
-        () -> {
-          for (FaultID fault : FaultID.values()) {
-            if (spark.getFault(fault)) {
-              report(SparkUtils.name(spark), fault.name(), FaultType.ERROR);
-            }
-          }
-        });
+  public static void register(SparkBase spark) {
+    register(
+        () -> spark.getFaults().other,
+        SparkUtils.name(spark),
+        "other strange error",
+        FaultType.ERROR);
+    register(
+        () -> spark.getFaults().motorType,
+        SparkUtils.name(spark),
+        "motor type error",
+        FaultType.ERROR);
+    register(
+        () -> spark.getFaults().sensor, SparkUtils.name(spark), "sensor error", FaultType.ERROR);
+    register(() -> spark.getFaults().can, SparkUtils.name(spark), "CAN error", FaultType.ERROR);
+    register(
+        () -> spark.getFaults().temperature,
+        SparkUtils.name(spark),
+        "temperature error",
+        FaultType.ERROR);
+    register(
+        () -> spark.getFaults().gateDriver,
+        SparkUtils.name(spark),
+        "gate driver error",
+        FaultType.ERROR);
+    register(
+        () -> spark.getFaults().escEeprom,
+        SparkUtils.name(spark),
+        "escEeprom? error",
+        FaultType.ERROR);
+    register(
+        () -> spark.getFaults().firmware,
+        SparkUtils.name(spark),
+        "firmware error",
+        FaultType.ERROR);
     register(
         () -> spark.getMotorTemperature() > 100,
         SparkUtils.name(spark),
@@ -228,24 +268,70 @@ public final class FaultLogger {
   }
 
   /**
+   * Registers Alerts for faults of a Redux Boron CANandGyro.
+   *
+   * @param canandgyro The Redux Boron CANandGyro to manage.
+   */
+  public static void register(Canandgyro canandgyro) {
+    register(() -> !canandgyro.isConnected(), "CANandGyro", "disconnected", FaultType.ERROR);
+    register(
+        () -> canandgyro.getActiveFaults().accelerationSaturation(),
+        "CANandGyro",
+        "acceleration saturated",
+        FaultType.WARNING);
+    register(
+        () -> canandgyro.getActiveFaults().angularVelocitySaturation(),
+        "CANandGyro",
+        "angular velocity saturated",
+        FaultType.WARNING);
+    register(
+        () -> canandgyro.getActiveFaults().calibrating(),
+        "CANandGyro",
+        "calibrating",
+        FaultType.WARNING);
+    register(
+        () -> canandgyro.getActiveFaults().canGeneralError(),
+        "CANandGyro",
+        "general CAN error",
+        FaultType.ERROR);
+    register(
+        () -> canandgyro.getActiveFaults().canIDConflict(),
+        "CANandGyro",
+        "CAN ID conflict",
+        FaultType.ERROR);
+    register(
+        () -> canandgyro.getActiveFaults().outOfTemperatureRange(),
+        "CANandGyro",
+        "temperature error",
+        FaultType.ERROR);
+    register(
+        () -> canandgyro.getActiveFaults().powerCycle(),
+        "CANandGyro",
+        "power cycling",
+        FaultType.WARNING);
+  }
+
+  /**
    * Registers fault suppliers for a power distribution hub/panel.
    *
    * @param powerDistribution The power distribution to manage.
    */
   public static void register(PowerDistribution powerDistribution) {
     var fields = PowerDistributionFaults.class.getFields();
-    faultReporters.add(
-        () -> {
-          try {
-            PowerDistributionFaults faults = powerDistribution.getFaults();
-            for (Field fault : fields) {
-              if (fault.getBoolean(faults)) {
-                report("Power Distribution", fault.getName(), FaultType.ERROR);
+    for (Field fault : fields) {
+      register(
+          () -> {
+            try {
+              if (fault.getBoolean(powerDistribution.getFaults())) {
+                return Optional.of(
+                    new Fault("Power Distribution", fault.getName(), FaultType.ERROR));
               }
+            } catch (Exception e) {
             }
-          } catch (Exception e) {
-          }
-        });
+            return Optional.empty();
+          });
+    }
+    ;
   }
 
   /**
@@ -262,16 +348,55 @@ public final class FaultLogger {
   }
 
   /**
+   * Registers fault suppliers for a CANcoder.
+   *
+   * @param camera The camera to manage.
+   */
+  public static void register(CANcoder cancoder) {
+    String nickname = "" + cancoder.getDeviceID();
+    register(
+        () -> cancoder.getFault_BadMagnet().getValue(),
+        "CANcoder " + nickname,
+        "The magnet distance is not correct or magnet is missing.",
+        FaultType.ERROR);
+    register(
+        () -> cancoder.getFault_BootDuringEnable().getValue(),
+        "CANcoder " + nickname,
+        "Device boot while detecting the enable signal.",
+        FaultType.WARNING);
+    register(
+        () -> cancoder.getFault_Hardware().getValue(),
+        "CANcoder " + nickname,
+        "Hardware fault occurred.",
+        FaultType.WARNING);
+    register(
+        () -> cancoder.getFault_Undervoltage().getValue(),
+        "CANcoder " + nickname,
+        "Device supply voltage dropped to near brownout levels.",
+        FaultType.WARNING);
+  }
+
+  /**
    * Registers fault suppliers for a talon.
    *
    * @param talon The talon to manage.
    */
   public static void register(TalonFX talon) {
-    int id = talon.getDeviceID();
-    BiConsumer<StatusSignal<Boolean>, String> regFault =
-        (f, d) -> register((BooleanSupplier) f, "Talon ID: " + id, d, FaultType.ERROR);
+    register(
+        () -> !talon.isConnected(),
+        "Talon " + talon.getDeviceID(),
+        "disconnected",
+        FaultType.ERROR);
 
-    // TODO: Remove all the unnecessary faults
+    BiConsumer<StatusSignal<Boolean>, String> regFault =
+        (f, d) ->
+            register(
+                () -> f.getValue(),
+                "Talon " + talon.getDeviceID(),
+                d,
+                FaultType.ERROR);
+
+    // TODO: Remove all the unnecessary faults.
     regFault.accept(talon.getFault_Hardware(), "Hardware fault occurred");
     regFault.accept(talon.getFault_ProcTemp(), "Processor temperature exceeded limit");
     regFault.accept(talon.getFault_Hardware(), "Hardware fault occurred");
@@ -329,7 +454,7 @@ public final class FaultLogger {
    * @param spark The spark to report REVLibErrors from.
    * @return If the spark is working without errors.
    */
-  public static boolean check(CANSparkBase spark) {
+  public static boolean check(SparkBase spark) {
     REVLibError error = spark.getLastError();
     return check(spark, error);
   }
@@ -343,7 +468,7 @@ public final class FaultLogger {
    * @param error Any REVLibErrors that may be returned from a method for a spark.
    * @return If the spark is working without errors.
    */
-  public static boolean check(CANSparkBase spark, REVLibError error) {
+  public static boolean check(SparkBase spark, REVLibError error) {
     if (error != REVLibError.kOk) {
       report(SparkUtils.name(spark), error.name(), FaultType.ERROR);
       return false;

@@ -3,7 +3,7 @@ package robot;
 import static edu.wpi.first.units.Units.*;
 
 import edu.wpi.first.units.Measure;
-import edu.wpi.first.units.Time;
+import edu.wpi.first.units.measure.Time;
 
 /**
  * Constants is a globally accessible class for storing immutable values. Every value should be
@@ -13,5 +13,5 @@ import edu.wpi.first.units.Time;
  * constants are needed, to reduce verbosity.
  */
 public class Constants {
-  public static final Measure<Time> PERIOD = Seconds.of(0.02); // roborio tickrate (s)
+  public static final Time PERIOD = Seconds.of(0.02); // roborio tickrate (s)
 }
