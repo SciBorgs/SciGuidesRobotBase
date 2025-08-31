@@ -14,8 +14,6 @@ import edu.wpi.first.networktables.StringArrayPublisher;
 import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.DutyCycleEncoder;
 import edu.wpi.first.wpilibj.PowerDistribution;
-import robot.Ports;
-
 import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -389,12 +387,7 @@ public final class FaultLogger {
         FaultType.ERROR);
 
     BiConsumer<StatusSignal<Boolean>, String> regFault =
-        (f, d) ->
-            register(
-                () -> f.getValue(),
-                "Talon " + talon.getDeviceID(),
-                d,
-                FaultType.ERROR);
+        (f, d) -> register(() -> f.getValue(), "Talon " + talon.getDeviceID(), d, FaultType.ERROR);
 
     // TODO: Remove all the unnecessary faults.
     regFault.accept(talon.getFault_Hardware(), "Hardware fault occurred");

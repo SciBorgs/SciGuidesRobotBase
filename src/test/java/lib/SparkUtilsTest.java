@@ -1,7 +1,7 @@
 package lib;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
 import static lib.UnitTestingUtil.setupTests;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import com.revrobotics.spark.SparkBase.PersistMode;
 import com.revrobotics.spark.SparkBase.ResetMode;
@@ -10,10 +10,10 @@ import com.revrobotics.spark.SparkLowLevel.MotorType;
 import com.revrobotics.spark.config.SparkBaseConfig.IdleMode;
 import com.revrobotics.spark.config.SparkFlexConfig;
 import java.util.Set;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
 import lib.SparkUtils.Data;
 import lib.SparkUtils.Sensor;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 public class SparkUtilsTest {
 
