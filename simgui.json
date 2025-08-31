@@ -2,7 +2,23 @@
   "NTProvider": {
     "types": {
       "/FMSInfo": "FMSInfo",
-      "/SmartDashboard/Scheduler": "Scheduler"
+      "/Faults/Active Faults": "Alerts",
+      "/Faults/Total Faults": "Alerts",
+      "/SmartDashboard/Scheduler": "Scheduler",
+      "Robot/drive/pid": "PIDController"
+    }
+  },
+  "NetworkTables": {
+    "transitory": {
+      "Robot": {
+        "drive": {
+          "open": true,
+          "pid": {
+            "open": true
+          }
+        },
+        "open": true
+      }
     }
   },
   "NetworkTables Info": {
